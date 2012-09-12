@@ -1,4 +1,4 @@
-Smeagol---NodeJS-crawler
+Smeagol-NodeJS-crawler
 ========================
 
 NodeJS experiment, crawling pages.
