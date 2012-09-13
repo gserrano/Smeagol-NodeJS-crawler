@@ -1,0 +1,6 @@
+TODO
+	- wild cards mais eficaz nos patterns de match de url
+	- callback executar apenas no final do parser
+
+
+DONE
