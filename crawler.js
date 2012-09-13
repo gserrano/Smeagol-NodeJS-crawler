@@ -10,35 +10,48 @@ var jsdom = require("jsdom"),
 
 /*Prototype*/
 crawler_obj = {
-    'http://letras.mus.br/.*?/' : {
-        nome_artista : {find : "#identificador_artista", callback : function(el){return el.html()}},
-        _open_link: {find : "#ico_fotos a",callback : function(el){return jquery(el).attr("href")}},
-        _each_link: {find : ".cnt_listas li a", callback:function(els){
-                var links = []; 
-                els.each(function(i,item){
-                    links.push(jquery(item).attr("href"));
-                });
-                return links;
-            }
-        }
-    },
-    'http://letras.mus.br/.*?/fotos.html' : {
-        fotos : { find : "ul.fotos img", callback : function(el){
- do 
-                ret = [];
-                el.each(function(i,item){
-                    ret.push(jquery(item).attr("src"));
-                })
-
-                return ret
-            }
-        }
-    },
-    'http://letras.mus.br/.*?/.*?/' : {
-        titulo : {find : "#identificador_musica", callback : function(el){return el.html()}}
-    },
-    'callback' : function(data){
+    callback : function(data){
         console.log(data);
+    },
+    patterns : {
+        'http://letras.mus.br/([^/].)*?/' : {
+            id : "artista",
+            query : {
+                nome_artista : {find : "#identificador_artista", callback : function(el){return el.html()}},
+                _open_link: {find : "#ico_fotos a",callback : function(el){return jquery(el).attr("href")}},
+                _each_link: {find : ".cnt_listas li a", callback:function(els){
+                        var links = []; 
+                        els.each(function(i,item){
+                            links.push(jquery(item).attr("href"));
+                        });
+                        return links;
+                    }
+                }
+            }
+        },
+        'http://letras.mus.br/.*?/fotos.html' : {
+            id : "fotos",
+            query : {
+                fotos : { find : "ul.fotos img", callback : function(el){
+
+                        ret = [];
+                        el.each(function(i,item){
+                            ret.push(jquery(item).attr("src"));
+                        })
+
+                        return ret
+                    }
+                }
+            }
+        },
+        'http://letras.mus.br/.*?/.*?/' : {
+            id : "musicas",
+            query : {
+                titulo : {find : "#identificador_musica", callback : function(el){return el.html()}},
+                exibicoes : {find : ".exibicoes-rating strong", callback : function(el){return el.html()}}
+            }
+            
+        }
     }
 };
 
@@ -52,7 +65,7 @@ crawler.open_link = function(obj){
     if(link.search("http://") == -1)
         link = "http://" + obj.response.request.uri.hostname + "/" + link
 
-    doCrawl({uri:link});
+    doCrawl({uri:link},false);
 }
 
 crawler.each_link = function(obj){
@@ -65,7 +78,7 @@ crawler.each_link = function(obj){
 
 data = {};
 
-function doCrawl(obj,parent){
+function doCrawl(obj,callbackSucesso){
 
     /*Faz o request*/
     request(obj, function (error, response, body) {
@@ -78,7 +91,9 @@ function doCrawl(obj,parent){
             var $ = jquery(window.document);
             
             //percorre cada propriedade do crawler_obj
-            for(var i in crawler_obj){
+            for(var i in crawler_obj["patterns"]){
+
+                crawler_page_properties = crawler_obj["patterns"][i];
 
                 //regex de pattern de url
                 re = new RegExp("^" + i + "$","gi");
@@ -86,11 +101,14 @@ function doCrawl(obj,parent){
                 //se casar a url atual com algum pattern crawlea o DOM
                 if(re.exec(href)){
 
+                    data_2_store = {}
+                    page_crawl_id = crawler_page_properties["id"];
+
                     //for para os campos a serem extraidos
-                    for(var field in crawler_obj[i]){
+                    for(var field in crawler_page_properties["query"]){
 
                         //campo a ser buscado
-                        dom_element_crawl = crawler_obj[i][field];
+                        dom_element_crawl = crawler_page_properties["query"][field];
                         dom_element_find = dom_element_crawl["find"];
 
                         //checagem de callback para tratamento
@@ -106,36 +124,35 @@ function doCrawl(obj,parent){
                                 link : dom_element_callback($.find(dom_element_find)),
                                 response : response
                             })
-                        }else{
-                            el = dom_element_callback($.find(dom_element_find));
 
-                            if(data[field] && typeof data[field] != "object"){
-                                tmp = data[field];
-                                data[field] = [];
-                                data[field].push(tmp);
-                                data[field].push(el);
-                            }else if(typeof data[field] == "object"){
-                                data[field].push(el);
-                            }else{
-                                data[field] = el;    
-                            }
-                            
+                        }else{
+
+                            data_2_store[field] = dom_element_callback($.find(dom_element_find));
+
                         }
                         
                     }
-                    
+
+                    if(!data[page_crawl_id]){
+                        data[page_crawl_id] = [];    
+                    }
+
+                    data[page_crawl_id].push(data_2_store);
+                                        
                 }
 
             }
 
-            crawler_obj.callback(data);
         }
+
+        console.log(data)
+        console.log("=============================")
 
     });   
 
 }
 
-doCrawl({uri:"http://letras.mus.br/carrossel-2012/"});
+doCrawl({uri:"http://letras.mus.br/carrossel-2012/"},function(){console.log(data)});
 
 
 
