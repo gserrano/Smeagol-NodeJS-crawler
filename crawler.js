@@ -16,8 +16,12 @@ crawler_obj = {
     patterns : {
         'http://letras.mus.br/([^/].)*?/' : {
             id : "artista",
+            do_extraction : function(body){
+                nome_artista = jquery(body).find("#identificador_artista").html();
+
+                return {artista : nome_artista};
+            },
             query : {
-                nome_artista : {find : "#identificador_artista", callback : function(el){return el.html()}},
                 _open_link: {find : "#ico_fotos a",callback : function(el){return jquery(el).attr("href")}},
                 _each_link: {find : ".cnt_listas li a", callback:function(els){
                         var links = []; 
@@ -31,6 +35,16 @@ crawler_obj = {
         },
         'http://letras.mus.br/.*?/fotos.html' : {
             id : "fotos",
+            do_extraction : function(body){
+                fotos = jquery(body).find("#ul.fotos img");
+
+                ret = [];
+                el.each(function(i,item){
+                    ret.push(jquery(item).attr("src"));
+                })
+
+                return ret
+            },
             query : {
                 fotos : { find : "ul.fotos img", callback : function(el){
 
@@ -50,7 +64,6 @@ crawler_obj = {
                 titulo : {find : "#identificador_musica", callback : function(el){return el.html()}},
                 exibicoes : {find : ".exibicoes-rating strong", callback : function(el){return el.html()}}
             }
-            
         }
     }
 };
@@ -103,6 +116,10 @@ function doCrawl(obj,callbackSucesso){
 
                     data_2_store = {}
                     page_crawl_id = crawler_page_properties["id"];
+
+                    if(typeof crawler_page_properties.do_extraction == "function"){
+                        data_2_store = crawler_page_properties.do_extraction($);
+                    }
 
                     //for para os campos a serem extraidos
                     for(var field in crawler_page_properties["query"]){
