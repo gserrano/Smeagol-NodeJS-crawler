@@ -3,22 +3,97 @@ var jsdom = require("jsdom"),
     request = require("request"),
     fs     = require('fs'),
     mongoose = require('mongoose'),
-    db = mongoose.connect('mongodb://10.12.3.151/gserrano'),
+    db = mongoose.connect('mongodb://localhost/crawler'),
     fs = require('fs'),
     http = require('http'),
     url = require('url');
 
+/*Prototype*/
+crawler_obj = {
+    'http://letras.mus.br/.*/' : {
+        nome_artista : "#identificador_artista",
+        _open_link: ["#ico_fotos a"]
+    },
+    'http://letras.mus.br/.*/fotos.html' : {
+        fotos : "ul.fotos img"
+    }
+};
 
-var obj = {
-    uri : 'http://comida.ig.com.br/pelomundo/p1237533839234.html'
-},
+
+function doCrawl(obj){
+
+    /*Faz o request*/
+    request(obj, function (error, response, body) {
+        if (error) {
+            console.log('HTTP request error... '+error);
+        }else{
+
+            var href=response.request.uri.href;
+            var window = jsdom.jsdom(body).createWindow();
+            var $ = jquery(window.document);
+            
+            //percorre cada propriedade do crawler_obj
+            for(var i in crawler_obj){
+
+                //regex de pattern de url
+                re = new RegExp("^" + i + "$","gi");
+
+                //se casar a url atual com algum pattern crawlea o DOM
+                if(re.exec(href)){
+
+                    //for para os campos a serem extraidos
+                    for(var field in crawler_obj[i]){
+
+                        //campos comecados com _ 
+                        if(/^_/.exec(field)){
+                            console.log("redirects");
+                        }else{
+                            domElement = crawler_obj[i][field];
+
+                            el = $.find(domElement).html();
+                            
+                        }
+                        
+                    }
+                    
+                }
+
+            }
+
+            
+        }
+    });   
+
+
+
+
+}
+
+
+doCrawl({uri:"http://letras.mus.br/carrossel-2012/"});
+
+
+
+
+
+
+
+
+
+
+
+
+
+    var obj = {
+        uri : 'http://letras.mus.br/carrossel-2012/'
+    },
     comidas = {},
     urls = {},
     content = fs.createWriteStream('conteudo.txt', {'flags': 'a'}),
     urlsFile = fs.createWriteStream('urls.txt', {'flags': 'a'}),
     collection = '4fc8cd230f03368412000035',
     counter = 0;
- 
+
 function crawl(obj, deep){
     request(obj, function (error, response, body) {
         if (error) {
@@ -133,7 +208,6 @@ function crawl(obj, deep){
             }
             
             console.log('##################### ' + counter);
-            //console.log('#####################');
             
         }
     });   
@@ -167,4 +241,4 @@ var getImg = function(o, cb){
 }
 
 
-crawl(obj, true);
+//crawl(obj, false);
