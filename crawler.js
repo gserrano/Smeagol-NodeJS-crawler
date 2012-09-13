@@ -10,17 +10,62 @@ var jsdom = require("jsdom"),
 
 /*Prototype*/
 crawler_obj = {
-    'http://letras.mus.br/.*/' : {
-        nome_artista : "#identificador_artista",
-        _open_link: ["#ico_fotos a"]
+    'http://letras.mus.br/.*?/' : {
+        nome_artista : {find : "#identificador_artista", callback : function(el){return el.html()}},
+        _open_link: {find : "#ico_fotos a",callback : function(el){return jquery(el).attr("href")}},
+        _each_link: {find : ".cnt_listas li a", callback:function(els){
+                var links = []; 
+                els.each(function(i,item){
+                    links.push(jquery(item).attr("href"));
+                });
+                return links;
+            }
+        }
     },
-    'http://letras.mus.br/.*/fotos.html' : {
-        fotos : "ul.fotos img"
+    'http://letras.mus.br/.*?/fotos.html' : {
+        fotos : { find : "ul.fotos img", callback : function(el){
+ do 
+                ret = [];
+                el.each(function(i,item){
+                    ret.push(jquery(item).attr("src"));
+                })
+
+                return ret
+            }
+        }
+    },
+    'http://letras.mus.br/.*?/.*?/' : {
+        titulo : {find : "#identificador_musica", callback : function(el){return el.html()}}
+    },
+    'callback' : function(data){
+        console.log(data);
     }
 };
 
+var crawler = {};
 
-function doCrawl(obj){
+//crawlea a partir de obj.link e response
+crawler.open_link = function(obj){
+    
+    link = obj.link;
+
+    if(link.search("http://") == -1)
+        link = "http://" + obj.response.request.uri.hostname + "/" + link
+
+    doCrawl({uri:link});
+}
+
+crawler.each_link = function(obj){
+
+    for(var i in obj.link){
+        crawler.open_link({link:obj.link[i],response:obj.response});
+    }
+}
+
+
+data = {};
+
+function doCrawl(obj,parent){
 
     /*Faz o request*/
     request(obj, function (error, response, body) {
@@ -44,13 +89,36 @@ function doCrawl(obj){
                     //for para os campos a serem extraidos
                     for(var field in crawler_obj[i]){
 
-                        //campos comecados com _ 
-                        if(/^_/.exec(field)){
-                            console.log("redirects");
-                        }else{
-                            domElement = crawler_obj[i][field];
+                        //campo a ser buscado
+                        dom_element_crawl = crawler_obj[i][field];
+                        dom_element_find = dom_element_crawl["find"];
 
-                            el = $.find(domElement).html();
+                        //checagem de callback para tratamento
+                        if(dom_element_crawl["callback"] && typeof dom_element_crawl["callback"] == "function")
+                            dom_element_callback = dom_element_crawl["callback"];
+                        else
+                            dom_element_callback = function(el){return el}
+
+                        //campos comecados com _ indicam operacoes do crawler
+                        if(/^_/.exec(field)){
+
+                            crawler[field.replace(/^_/,"")]({
+                                link : dom_element_callback($.find(dom_element_find)),
+                                response : response
+                            })
+                        }else{
+                            el = dom_element_callback($.find(dom_element_find));
+
+                            if(data[field] && typeof data[field] != "object"){
+                                tmp = data[field];
+                                data[field] = [];
+                                data[field].push(tmp);
+                                data[field].push(el);
+                            }else if(typeof data[field] == "object"){
+                                data[field].push(el);
+                            }else{
+                                data[field] = el;    
+                            }
                             
                         }
                         
@@ -60,18 +128,14 @@ function doCrawl(obj){
 
             }
 
-            
+            crawler_obj.callback(data);
         }
+
     });   
-
-
-
 
 }
 
-
 doCrawl({uri:"http://letras.mus.br/carrossel-2012/"});
-
 
 
 
