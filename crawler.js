@@ -11,12 +11,15 @@ var jsdom = require("jsdom"),
 /*Prototype*/
 crawler_obj = {
     callback : function(data){
+        //callback sucesso ao final do crawler
         console.log(data);
     },
     patterns : {
         'http://letras.mus.br/([^/].)*?/' : {
             id : "artista",
             do_extraction : function(body){
+                //extracao generica a partir do body caso prefira manipular diversar informacoes
+                //caso nao, usar o atributo query
                 nome_artista = jquery(body).find("#identificador_artista").html();
 
                 return {artista : nome_artista};
@@ -36,6 +39,8 @@ crawler_obj = {
         'http://letras.mus.br/.*?/fotos.html' : {
             id : "fotos",
             do_extraction : function(body){
+                //extracao generica a partir do body caso prefira manipular diversar informacoes
+                //caso nao, usar o atributo query
                 fotos = jquery(body).find("#ul.fotos img");
 
                 ret = [];
